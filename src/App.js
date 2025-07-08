@@ -15,9 +15,8 @@ function App() {
   const [gameOver, setGameOver] = useState(false);
   const [winner, setWinner] = useState('');
   const [revealAll, setRevealAll] = useState(false);
-  const [lastGuessResult, setLastGuessResult] = useState(null); // 'correct', 'incorrect'
+  const [lastGuessResult, setLastGuessResult] = useState(null); 
 
-  // Generate and shuffle grid
   const generateGrid = () => {
     const items = Array(TILE_COUNT / 2).fill('banana').concat(Array(TILE_COUNT / 2).fill('chicken'));
     for (let i = items.length - 1; i > 0; i--) {
