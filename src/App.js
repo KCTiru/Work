@@ -1,143 +1,169 @@
 import React, { useState, useEffect } from 'react';
-import { io } from 'socket.io-client';
+import './App.css';
 
-const CHICKEN_IMG =
-  'https://thumbs.dreamstime.com/z/full-body-brown-chicken-hen-standing-isolated-white-backgroun-background-use-farm-animals-livestock-theme-49741285.jpg?ct=jpeg';
-const BANANA_IMG =
-  'https://thumbs.dreamstime.com/b/bunch-bananas-6175887.jpg?w=768';
+const CHICKEN_IMG = 'https://thumbs.dreamstime.com/z/full-body-brown-chicken-hen-standing-isolated-white-backgroun-background-use-farm-animals-livestock-theme-49741285.jpg?ct=jpeg';
+const BANANA_IMG = 'https://thumbs.dreamstime.com/b/bunch-bananas-6175887.jpg?w=768';
 
 const GRID_SIZE = 6;
-const socket = io('http://172.18.0.176:4000'); // Replace with your backend IP
+const TILE_COUNT = GRID_SIZE * GRID_SIZE;
 
 function App() {
-  const [gameState, setGameState] = useState(null);
-  const [message, setMessage] = useState(null);
-  const [playerType, setPlayerType] = useState(null); // 'banana' or 'chicken'
-  const [readyClicked, setReadyClicked] = useState(false);
+  const [grid, setGrid] = useState([]);
+  const [selectedTile, setSelectedTile] = useState(null);
+  const [guesses, setGuesses] = useState({});
+  const [revealedTiles, setRevealedTiles] = useState(new Set());
+  const [gameOver, setGameOver] = useState(false);
+  const [winner, setWinner] = useState('');
+  const [revealAll, setRevealAll] = useState(false);
+  const [lastGuessResult, setLastGuessResult] = useState(null); // 'correct', 'incorrect'
+
+  // Generate and shuffle grid
+  const generateGrid = () => {
+    const items = Array(TILE_COUNT / 2).fill('banana').concat(Array(TILE_COUNT / 2).fill('chicken'));
+    for (let i = items.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [items[i], items[j]] = [items[j], items[i]];
+    }
+    return items;
+  };
 
   useEffect(() => {
-    socket.on('gameState', (state) => {
-      setGameState(state);
-      // Clear message on new game start
-      if(state.gameStatus === 'playing') setMessage(null);
-    });
-
-    socket.on('result', (msg) => {
-      setMessage(msg);
-    });
-
-    return () => {
-      socket.off('gameState');
-      socket.off('result');
-    };
+    setGrid(generateGrid());
   }, []);
 
-  function handleReady(type) {
-    setPlayerType(type);
-    setReadyClicked(true);
-    socket.emit('ready', type);
-  }
+  useEffect(() => {
+    if (selectedTile === null || !guesses.player1 || !guesses.player2) return;
 
-  function handleTileClick(index) {
-    if (!gameState) return;
-    if (gameState.gameStatus !== 'playing') return;
-    if (!playerType) {
-      alert('Please select your player type and ready up first!');
-      return;
+    const actual = grid[selectedTile];
+    const p1Correct = guesses.player1 === actual;
+    const p2Correct = guesses.player2 === actual;
+
+    const newRevealed = new Set(revealedTiles);
+    newRevealed.add(selectedTile);
+    setRevealedTiles(newRevealed);
+
+    if (!p1Correct && !p2Correct) {
+      setLastGuessResult('incorrect');
+      setGameOver(true);
+      setWinner('No one');
+    } else if (!p1Correct) {
+      setLastGuessResult('incorrect');
+      setGameOver(true);
+      setWinner('Banana Player');
+    } else if (!p2Correct) {
+      setLastGuessResult('incorrect');
+      setGameOver(true);
+      setWinner('Chicken Player');
+    } else {
+      setLastGuessResult('correct');
+      if (newRevealed.size === TILE_COUNT) {
+        setGameOver(true);
+        setWinner('Both players');
+      }
     }
-    if (gameState.currentPlayer !== playerType) return;
-    if (gameState.turnClicks[playerType] !== null) return;
-    if (gameState.tileStates[index] === 'revealed' || gameState.tileStates[index] === 'mistake') return;
 
-    socket.emit('tileClick', { player: playerType, index });
-  }
+    setTimeout(() => {
+      setSelectedTile(null);
+      setGuesses({});
+      setLastGuessResult(null);
+    }, 1000);
+  }, [guesses]);
 
-  function restartGame() {
-    socket.emit('restart');
-    setPlayerType(null);
-    setReadyClicked(false);
-    setMessage(null);
-  }
+  const handleTileClick = (index) => {
+    if (gameOver || revealedTiles.has(index) || selectedTile !== null) return;
+    setSelectedTile(index);
+    setGuesses({});
+  };
 
-  if (!gameState) {
-    return <div>Loading game...</div>;
-  }
+  const handleGuess = (player, guess) => {
+    if (selectedTile === null || gameOver) return;
+    setGuesses((prev) => ({ ...prev, [player]: guess }));
+  };
+
+  const restartGame = () => {
+    setGrid(generateGrid());
+    setRevealedTiles(new Set());
+    setSelectedTile(null);
+    setGameOver(false);
+    setWinner('');
+    setRevealAll(false);
+    setGuesses({});
+    setLastGuessResult(null);
+  };
 
   return (
-    <div style={{ padding: 20 }}>
-      <h1>Chicken Banana Multiplayer Game</h1>
+    <div className="container">
+      <h1>Chicken Banana Guess Game</h1>
+      <p>{gameOver ? `Game Over! Winner: ${winner}` : 'Click a tile and both players must guess.'}</p>
 
-      {!readyClicked && (
-        <div>
-          <button onClick={() => handleReady('banana')} style={{ marginRight: 10 }}>
-            Join as Banana Player
-          </button>
-          <button onClick={() => handleReady('chicken')}>Join as Chicken Player</button>
-        </div>
+      {gameOver && (
+        <>
+          <button onClick={restartGame} className="btn restart">Restart</button>
+          <button onClick={() => setRevealAll(true)} className="btn reveal">Reveal All</button>
+        </>
       )}
 
-      <p>
-        <b>Your role:</b> {playerType ? playerType.toUpperCase() : 'Not joined yet'} <br />
-        <b>Game status:</b> {gameState.gameStatus} <br />
-        <b>Current turn:</b> {gameState.currentPlayer ? gameState.currentPlayer.toUpperCase() : 'N/A'}
-      </p>
-
-      {message && (
-        <div style={{ marginBottom: 10, padding: 10, backgroundColor: '#eee', borderRadius: 5 }}>
-          <b>{message}</b>
-        </div>
-      )}
-
-      {gameState.gameStatus === 'finished' && (
-        <button onClick={restartGame}>Restart Game</button>
-      )}
-
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: `repeat(${GRID_SIZE}, 60px)`,
-          gap: 5,
-          marginTop: 20,
-          userSelect: 'none',
-        }}
-      >
-        {gameState.grid.map((type, idx) => {
-          const state = gameState.tileStates[idx];
-          const showImage = state === 'revealed' || state === 'mistake';
+      <div className="grid">
+        {grid.map((type, idx) => {
+          const isRevealed = revealedTiles.has(idx) || revealAll;
+          const imgSrc = type === 'chicken' ? CHICKEN_IMG : BANANA_IMG;
+          const feedbackClass =
+            selectedTile === idx && lastGuessResult === 'correct'
+              ? 'correct'
+              : selectedTile === idx && lastGuessResult === 'incorrect'
+              ? 'incorrect'
+              : '';
 
           return (
             <div
               key={idx}
+              className={`tile ${isRevealed ? 'clicked' : ''} ${feedbackClass}`}
               onClick={() => handleTileClick(idx)}
-              style={{
-                width: 60,
-                height: 60,
-                border: '1px solid black',
-                backgroundColor: state === 'mistake' ? '#f88' : state === 'revealed' ? '#ddd' : '#444',
-                cursor:
-                  gameState.gameStatus === 'playing' &&
-                  gameState.currentPlayer === playerType &&
-                  gameState.turnClicks[playerType] === null &&
-                  !state
-                    ? 'pointer'
-                    : 'default',
-                display: 'flex',
-                justifyContent: 'center',
-                alignItems: 'center',
-              }}
-              title={state === 'mistake' ? 'Mistake' : 'Hidden Tile'}
             >
-              {showImage && (
-                <img
-                  src={type === 'chicken' ? CHICKEN_IMG : BANANA_IMG}
-                  alt={type}
-                  style={{ width: 40, height: 40 }}
-                />
-              )}
+              {isRevealed && <img src={imgSrc} alt={type} className="tile-img" />}
+              <div className="tile-number">{idx + 1}</div>
             </div>
           );
         })}
       </div>
+
+      {selectedTile !== null && (
+        <div className="guess-panel">
+          <h3>Tile #{selectedTile + 1} - Make your guesses!</h3>
+          <div className="guess-buttons">
+            <div>
+              <p>Chicken Player</p>
+              <button
+                onClick={() => handleGuess('player1', 'chicken')}
+                className={guesses.player1 === 'chicken' ? 'selected' : ''}
+              >
+                Chicken
+              </button>
+              <button
+                onClick={() => handleGuess('player1', 'banana')}
+                className={guesses.player1 === 'banana' ? 'selected' : ''}
+              >
+                Banana
+              </button>
+            </div>
+            <div>
+              <p>Banana Player</p>
+              <button
+                onClick={() => handleGuess('player2', 'chicken')}
+                className={guesses.player2 === 'chicken' ? 'selected' : ''}
+              >
+                Chicken
+              </button>
+              <button
+                onClick={() => handleGuess('player2', 'banana')}
+                className={guesses.player2 === 'banana' ? 'selected' : ''}
+              >
+                Banana
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

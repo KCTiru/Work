@@ -1,17 +1,130 @@
-.tile {
-  border-radius: 6px;
-  background-color: #777;
+body {
+  margin: 0;
+  background-color: #222;
   color: white;
-  cursor: pointer;
-  user-select: none;
-  font-size: 32px;
-  line-height: 60px;
-  height: 60px;
-  width: 60px;
-  box-shadow: 2px 2px 5px rgba(0,0,0,0.3);
-  transition: background-color 0.3s ease;
 }
 
-.tile:hover {
-  background-color: #555;
+.container {
+  padding: 20px;
+  text-align: center;
+  font-family: sans-serif;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(6, 60px);
+  gap: 6px;
+  margin: 20px auto;
+  justify-content: center;
+}
+
+.tile {
+  width: 60px;
+  height: 60px;
+  background-color: #444;
+  border: 1px solid #000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  cursor: pointer;
+  transition: background-color 0.2s ease, transform 0.2s ease;
+}
+
+.tile.revealed {
+  background-color: #ddd;
+  cursor: default;
+}
+
+.tile-img {
+  width: 40px;
+  height: 40px;
+  animation: fadeIn 0.2s forwards;
+}
+
+.tile-number {
+  position: absolute;
+  top: 3px;
+  left: 5px;
+  font-size: 12px;
+  font-weight: bold;
+  color: white;
+  text-shadow: 1px 1px 2px black;
+}
+
+.btn {
+  padding: 10px 20px;
+  margin: 10px;
+  font-size: 14px;
+  cursor: pointer;
+  border: none;
+  border-radius: 6px;
+}
+
+.btn.start {
+  background-color: #4caf50;
+  color: white;
+}
+
+.btn.restart {
+  background-color: #f39c12;
+  color: white;
+}
+
+.btn.reveal {
+  background-color: #3498db;
+  color: white;
+}
+
+.status {
+  margin: 20px 0;
+}
+
+.guess-panel {
+  margin-top: 20px;
+  background: #333;
+  padding: 15px;
+  border-radius: 10px;
+}
+
+.guess-buttons {
+  display: flex;
+  justify-content: space-around;
+  gap: 20px;
+  margin-top: 10px;
+}
+
+.guess-buttons button {
+  margin: 5px;
+  padding: 8px 14px;
+  font-size: 14px;
+  border-radius: 5px;
+  border: none;
+  background-color: #666;
+  color: white;
+  cursor: pointer;
+  transition: background 0.3s ease;
+}
+
+/* Highlight selected guess */
+.guess-buttons button.selected {
+  background-color: #27ae60;
+}
+
+/* Tile visual effects */
+.tile.correct {
+  box-shadow: 0 0 10px 3px #2ecc71;
+  border: 2px solid #2ecc71;
+}
+
+.tile.incorrect {
+  box-shadow: 0 0 10px 3px #e74c3c;
+  border: 2px solid #e74c3c;
+}
+
+@keyframes fadeIn {
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
